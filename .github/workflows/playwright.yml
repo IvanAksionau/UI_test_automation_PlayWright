@@ -1,0 +1,130 @@
+name: Playwright Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Nightly full regression against staging
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      test_env:
+        description: Target environment
+        type: choice
+        options: [dev, staging, prod]
+        default: staging
+      grep:
+        description: Only run tests matching this tag/regex (e.g. @smoke)
+        type: string
+        default: ''
+
+env:
+  TEST_ENV: ${{ github.event.inputs.test_env || 'staging' }}
+  CI: 'true'
+  HEADLESS: 'true'
+
+jobs:
+  static-checks:
+    name: Lint & typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run format:check
+
+  api:
+    name: API tests
+    runs-on: ubuntu-latest
+    needs: static-checks
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npx playwright test --project=api ${{ github.event.inputs.grep && format('--grep "{0}"', github.event.inputs.grep) || '' }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: report-api
+          path: reports/blob
+          retention-days: 7
+
+  ui:
+    name: UI ${{ matrix.project }} (shard ${{ matrix.shard }})
+    runs-on: ubuntu-latest
+    needs: static-checks
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        project:
+          - chromium-desktop
+          - firefox-desktop
+          - webkit-desktop
+          - mobile-chrome-pixel7
+          - mobile-safari-iphone14
+          - mobile-small-320
+          - tablet-ipad
+        shard: [1, 2]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Install browsers
+        run: npx playwright install --with-deps
+      - name: Run tests
+        run: >
+          npx playwright test
+          --project=${{ matrix.project }}
+          --shard=${{ matrix.shard }}/2
+          ${{ github.event.inputs.grep && format('--grep "{0}"', github.event.inputs.grep) || '' }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: report-${{ matrix.project }}-${{ matrix.shard }}
+          path: reports/blob
+          retention-days: 7
+
+  merge-reports:
+    name: Merge HTML report
+    runs-on: ubuntu-latest
+    needs: [api, ui]
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: report-*
+          path: all-blob-reports
+          merge-multiple: true
+      - run: npx playwright merge-reports --reporter html,junit ./all-blob-reports
+        env:
+          PLAYWRIGHT_JUNIT_OUTPUT_NAME: results.xml
+      - uses: actions/upload-artifact@v4
+        with:
+          name: html-report
+          path: playwright-report
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        with:
+          name: junit-report
+          path: results.xml
+          retention-days: 14

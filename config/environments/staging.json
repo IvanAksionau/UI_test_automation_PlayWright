@@ -1,0 +1,16 @@
+{
+  "name": "staging",
+  "baseUrl": "https://practicesoftwaretesting.com",
+  "apiBaseUrl": "https://api.practicesoftwaretesting.com",
+  "timeouts": {
+    "test": 60000,
+    "action": 15000,
+    "navigation": 30000,
+    "expect": 10000
+  },
+  "retries": 1,
+  "ignoreHttpsErrors": false,
+  "features": {
+    "socialLogin": true
+  }
+}

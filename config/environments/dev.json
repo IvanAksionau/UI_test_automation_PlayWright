@@ -1,0 +1,16 @@
+{
+  "name": "dev",
+  "baseUrl": "https://with-bugs.practicesoftwaretesting.com",
+  "apiBaseUrl": "https://api-with-bugs.practicesoftwaretesting.com",
+  "timeouts": {
+    "test": 60000,
+    "action": 15000,
+    "navigation": 30000,
+    "expect": 10000
+  },
+  "retries": 0,
+  "ignoreHttpsErrors": true,
+  "features": {
+    "socialLogin": false
+  }
+}

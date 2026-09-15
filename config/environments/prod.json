@@ -1,0 +1,16 @@
+{
+  "name": "prod",
+  "baseUrl": "https://practicesoftwaretesting.com",
+  "apiBaseUrl": "https://api.practicesoftwaretesting.com",
+  "timeouts": {
+    "test": 90000,
+    "action": 20000,
+    "navigation": 45000,
+    "expect": 15000
+  },
+  "retries": 2,
+  "ignoreHttpsErrors": false,
+  "features": {
+    "socialLogin": true
+  }
+}
